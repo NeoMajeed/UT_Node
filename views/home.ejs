@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test upload IPFS</title>
+    <style>
+        body{
+            background-color: rgba(34, 37, 33, 0.644);
+        }
+        .home{
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%,-50%);
+        }
+
+        .columns {
+            display: flex;
+            flex-direction: row;
+            gap: 8em;
+            width: 100%;
+        }
+
+        @media only screen and (max-width: 930px) {
+            .columns{
+                flex-direction: column;
+                gap: 5em;
+            }
+            
+        }
+        .button {
+            width: 200px;
+            height: 200px;
+            outline: none;
+            text-decoration: none;
+            border-radius: 9px;
+            border: 0;
+            cursor: pointer;
+        }
+
+        .button:hover{
+            transition: all 0.1s ease-in;  
+        }
+        .addstudnt:hover{
+            background: rgba(30, 255, 0, 0.301);
+        }
+        .rec:hover{
+            background: rgba(0, 255, 221, 0.301);
+        }
+        .verifi:hover{
+            background: rgba(255, 0, 0, 0.301);
+        }
+    </style>
+</head>
+<body>
+    <div class="home">
+        <div class="columns">
+            <div class="column">
+                <a href="/addStudent"><button class="addstudnt button">إضافة طالب</button></a>
+            </div>
+            <div class="column">
+                <a href="/recuit"><button class="rec button">مسؤول التوظيف</button></a>
+            </div>
+            <div class="column">
+                <a href="/verifie"><button class="verifi button">التحقق من الشهادة</button></a>
+            </div>
+        </div>
+    </div>
+    
+</body>
+</html>
