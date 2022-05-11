@@ -159,6 +159,43 @@ async function alldatahashes (hashes, res ,who) {
 };
 
 //PDF
+app.get('/pdf/:id', (req, res) => {
+    students.findById((req.params.id), (err, result) => {
+        let hash = '' 
+        hash = result.ipfsHash;
+        getDataHashres(hash).then(data => {
+
+            const doc = new jsPDF();
+            data = JSON.parse(data);
+            let nameEN = `Name Of student: ${data.nameEN}`;
+            let NID = `National Nubmer: ${data.NID}`;
+            let major = `Major: ${data.major}`;
+            let year = `Year of graductin: ${data.year}`;
+            let semester = `Semester: ${data.semester}`;
+            let faculty = `Faculty: ${data.faculty}`;
+            let email = `Email: ${data.email}`;
+            let phone = `Phone: ${data.phone}`;
+            let GPA = `GPA: ${data.GPA}`;
+            
+            const arr = [nameEN, NID, major, faculty, year, semester, email, phone, GPA];
+
+            console.log(arr)
+            var img = fs.readFileSync('./assets/UT2.jpg').toString('base64');
+            doc.addImage(img, 'jpg', 20, 5, 20, 20);
+            doc.setFontSize(12);
+            doc.text('University of tabuk', 80, 13);
+            doc.text(`Faculty ${data.faculty}`, 70, 19);
+            doc.line(20, 25, 188, 25);
+            doc.setFontSize(20);
+            doc.text(arr, 20.5, 32);
+            doc.save(`./verified Certificates/${result.id}.pdf`);
+            console.log("hi")
+            setTimeout(() => {
+                res.download(`./verified Certificates/${result.id}.pdf`)
+            }, 200);
+        })
+    });
+});
 
 
 app.post("/addStudent", (req, res) => {
@@ -198,6 +235,31 @@ app.post("/addStudent", (req, res) => {
 
 
 //تسجيل دخول الإدمن
+let adminEmail = "";
+app.post("/auth_admin", (req, res) => {
+    const body = req.body;
+    const email = body.email;
+    const password = body.password;
+    const sql = 'select * from admin where email = ?';
+
+    db.query(sql, [email], async (err, result) =>{
+        if (err) throw err;
+        if(result.length > 0){
+            const isMatch =  password == result[0].password;
+            if(isMatch){
+                adminEmail = email;   
+                req.session.admin = true;
+                        
+                res.redirect("/admin")
+            }
+            else{
+                res.redirect("/admin_login")
+            }
+        }else{
+            res.redirect("/admin_login")
+        }
+    })
+})
 
 app.get("/rec", (req, res) => {
     if(req.session.email){
