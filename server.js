@@ -2,12 +2,14 @@ const ethAirBalloons = require('ethairballoons');
 const path = require('path');
 const {create} = require('ipfs-http-client');
 const savePath = path.resolve(__dirname + '/contracts');
-const express = require('express')
+const express = require('express');
 const fs = require('fs');
 const mysql = require("mysql2");
-const bodyParser = require('body-parser')
-const { jsPDF } = require("jspdf"); // will automatically load the node version
+const bodyParser = require('body-parser');
+const { jsPDF } = require("jspdf");
 const { json } = require('express/lib/response');
+const session = require('express-session');
+const bcrypt = require('bcrypt');
 
 const app = express()
 const port = 3000
@@ -15,6 +17,12 @@ const port = 3000
 app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json())
+
+app.use(session({
+    secret: 'ABCDefg',
+    resave: false,
+    saveUninitialized: true
+}))
 
 //const ipfs = ipfsClient.create({ host: 'localhost', port: '5001', protocol: 'http'});
 const ethAirBalloonsProvider = ethAirBalloons('http://localhost:7545', savePath); 
@@ -85,8 +93,18 @@ async function getHash(input) {
 }
 
 async function getObject(data){
-    let {NID} = data
+    let {NID, year, semester} = data;
     let ipfsHash = await getHash(data)
+    let object = {
+        NIDC: NID,
+        year: year,
+        semester: semester,
+        hash: ipfsHash
+    }
+    const sql = `INSERT INTO certificates SET ?`;
+    db.query(sql, object, (err, results) => {
+        if(err) throw err;
+    })
     console.log("outer:",ipfsHash)
     const dataContract = {
         id: NID,
@@ -148,7 +166,6 @@ app.post("/addStudent", (req, res) => {
 
     const body = req.body;
     console.log(body);
-    
     const sql = `INSERT into students SET ?`;
     db.query(sql, body, function (err, data) {
         if (err) throw err;
@@ -166,11 +183,29 @@ app.post("/addStudent", (req, res) => {
             }
         }); 
     })
-    let who = "addStudent"
+    let who = "admin"
     setTimeout(() => {
         all(alldatahashes, res, who)
     },500);
 });
+
+//تسجيل حساب لمسؤول التوظيف
+
+
+//تسجيل حساب لمسؤول التوظيف
+
+//نسجيل الخروج
+
+
+//تسجيل دخول الإدمن
+
+app.get("/rec", (req, res) => {
+    if(req.session.email){
+        all(alldatahashes, res, "recruit");
+    }else{
+        res.redirect("/login")
+    }
+})
 
 app.get('/', (req, res) =>{
     res.render('home');
@@ -180,14 +215,21 @@ app.get('/verifie', (req, res) =>{
     res.render('verifie', {data: '', err: ''});
 });
 
-app.get('/addstudent', (req, res) =>{
-    res.render('addStudent', {data: ''});
+app.get('/admin', (req, res) =>{
+    if(req.session.admin){
+    all(alldatahashes, res, "admin");
+    }else{
+        res.redirect("/admin_Login")
+    }
+    // res.render('addStudent', {data: ''});
 });
 
-app.get('/recuit',(req,res)=>{
-    let who = "recuit"
-    all(alldatahashes, res, who)
+app.get('/login',(req,res)=>{
+    res.render('regAndLogin', {msg: '', flag: ''});
+    //let who = "recruit"
+    //all(alldatahashes, res, who)
 });
+
 
 app.get('/findall', (req,res) => {
     students.find(function (err, allObjects) {
@@ -223,13 +265,18 @@ app.post('/update', (req,res) => {
     const sql = `UPDATE students SET ? WHERE NID=?;`;
     db.query(sql, [body, body.NID], function (err, data) {
         if (err) throw err;
-            console.log("Student deleted from DATABASE successfully ")
+            console.log("Student updated DATABASE successfully ")
+    });
+
+    const sql2 = `DELETE FROM certificates WHERE NIDC=?`;
+    db.query(sql2, body.NID, function (err, data) {
+        if (err) throw err;
     });
 
     getObject(body).then(data => {
         students.updateById(data.id, data, function (err, objectSaved) {
             if (!err) {
-                all(alldatahashes, res, "addStudent")
+                all(alldatahashes, res, "admin")
             } else {
                 res.send(err)
             }
@@ -241,13 +288,13 @@ app.post('/update', (req,res) => {
 app.get('/delete/:id', (req,res) => {
     const sql = `DELETE FROM students WHERE NID=?`;
     db.query(sql, req.params.id, function (err, data) {
-        if (err) throw err;
+        if (err) console.log(err.sqlMessage);
             console.log("Student deleted from DATABASE successfully ")
     });
 
     students.deleteById(req.params.id, function (err, found) {
         if (!err) {
-            res.json({message: "Object deleted successfully"});
+            res.redirect("/admin");
         } else {
             res.send(err)
         }
