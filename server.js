@@ -228,12 +228,69 @@ app.post("/addStudent", (req, res) => {
 });
 
 //تسجيل حساب لمسؤول التوظيف
+app.post("/auth_reg", (req, res) => {
+    const body = req.body;
+    const name = body.name;
+    const email = body.email;
+    const password = body.password;
+    const cpassword = body.cpassword;
+    if(cpassword == password){
+        const sql = 'select * from recruitmentofficers where email = ?';
+
+        db.query(sql, [email], function (err, result){
+            if (err) throw err;
+            if(result.length > 0){
+                res.render("regAndLogin" , {msg: "البريد الالكتروني مستخدم من قبل", flag: "warning"})
+            }else{
+                const hashpassword = bcrypt.hashSync(password, 10);
+                const sql = `INSERT into recruitmentofficers(name, email, password) VALUES(?,?,?)`;
+                db.query(sql, [name,email,hashpassword], function (err, data) {
+                    if (err) throw err;
+
+                    res.render("regAndLogin" , {msg: `تم التسجيل بنجاح الرجاء إرسال إثبات جهة عمل من الإيميل المسجل الى هذا الإيميل ${adminEmail}`, flag: "success"});
+                })
+            }
+        })
+    }
+})
 
 
-//تسجيل حساب لمسؤول التوظيف
+
+//تسجيل دخول لمسؤول التوظيف
+app.post("/auth_login", (req, res) => {
+    const body = req.body;
+    const email = body.email;
+    const password = body.password;
+    const sql = 'select * from recruitmentofficers where email = ?';
+
+    db.query(sql, [email], async (err, result) =>{
+        if (err) throw err;
+        if(result.length > 0){
+            const isMatch = await bcrypt.compare(password, result[0].password);
+            if(isMatch){
+                if(result[0].verified == 1){
+                req.session.email = true;           
+                res.redirect("/rec")
+                }else{
+                    res.render("regAndLogin" , {msg: "الرجاء الإنتظار لتأكيد حسابك", flag: "warning"})
+                }
+            }
+            else{
+                res.render("regAndLogin", {msg: "كلمة المرور غير صحيحة", flag: "danger"})
+            }
+        }else{
+            res.render("regAndLogin", {msg: "لاوجود لهذا الحساب", flag: "danger"})
+        }
+    })
+})
 
 //نسجيل الخروج
-
+app.get("/auth_logout", (req, res) => {
+    req.session.destroy((err) => {
+        if (err) throw err;
+        res.redirect("/login")
+    })
+})
 
 //تسجيل دخول الإدمن
 let adminEmail = "";
