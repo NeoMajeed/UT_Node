@@ -10,23 +10,23 @@ const { jsPDF } = require("jspdf");
 const { json } = require('express/lib/response');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
-
 const app = express()
 const port = 3000
-
 app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json())
 
+//use session to store user data in session storage
 app.use(session({
     secret: 'ABCDefg',
     resave: false,
     saveUninitialized: true
 }))
 
-//const ipfs = ipfsClient.create({ host: 'localhost', port: '5001', protocol: 'http'});
+//connect to ganache blockchain 
 const ethAirBalloonsProvider = ethAirBalloons('http://localhost:7545', savePath); 
 
+//connect to local ipfs node
 async function ipfsClient() {
     const ipfs = await create(
         {
@@ -56,7 +56,7 @@ db.connect( (error) =>{
     }
 })
 
-// create students schema 
+// create students contract 
 const students = ethAirBalloonsProvider.createSchema({
     name: "Student",
     contractName: "studentsContract",
@@ -73,6 +73,7 @@ const students = ethAirBalloonsProvider.createSchema({
     ]
 });
 
+//deploy students contract
 students.deploy(function (err, success) {
     if (!err) {
         console.log("Contract deployed successfully!")
@@ -81,17 +82,17 @@ students.deploy(function (err, success) {
     }
 }) 
 
+//upload data to ipfs and get hash
 async function getHash(input) {
     let ipfs = await ipfsClient();
     const data = JSON.stringify(input)
     const NID = input.NID;
     const {cid} = await ipfs.add({path: `${NID}.json`, content: data}, {cidVersion:1})
     const ipfsHash = cid.toString();
-    console.log("Hash:",ipfsHash);
-    console.log(typeof(cid));
     return ipfsHash;
 }
 
+//add ipfs hash to database 
 async function getObject(data){
     let {NID, year, semester} = data;
     let ipfsHash = await getHash(data)
@@ -114,26 +115,25 @@ async function getObject(data){
 }
 
 
-
+//function to return all data from blockchain
 const all = (alldatahashes, res, who) =>{ 
     students.find( async(err, allObjects) => {
         if (!err) {
             const hashes = []
-            //res.send(allObjects);
             console.log("allobjects",typeof(allObjects))
             console.log("All objects: ", allObjects);
             allObjects.forEach(function (object) {
                  hashes.push(object.ipfsHash);
              })
              console.log("hashes: ", hashes)
-             alldatahashes(hashes, res , who);
-             //res.render('recuit', {data: allstudent})     
+             alldatahashes(hashes, res , who);     
         } else {
             res.send(err)
         }
     });    
 }
 
+//function to return data from ipfs hash
 async function getDataHashres (hash) {
     const node = await ipfsClient()
     
@@ -144,10 +144,10 @@ async function getDataHashres (hash) {
       // chunks of data are returned as a Buffer, convert it back to a string
       data += chunk.toString()
     }
-    //console.log("data: ",data)
     return data;
 };
 
+//function to return all data of students
 async function alldatahashes (hashes, res ,who) {
     let allstudent = []
     for(const hash of hashes){
@@ -158,7 +158,7 @@ async function alldatahashes (hashes, res ,who) {
     res.render(who, {data: allstudent});;
 };
 
-//PDF
+//Generate PDF
 app.get('/pdf/:id', (req, res) => {
     students.findById((req.params.id), (err, result) => {
         let hash = '' 
@@ -196,12 +196,9 @@ app.get('/pdf/:id', (req, res) => {
         })
     });
 });
-//1 
 
-
+//إضافة طالب جديد
 app.post("/addStudent", (req, res) => {
-
-
     const body = req.body;
     console.log(body);
     const sql = `INSERT into students SET ?`;
@@ -210,14 +207,13 @@ app.post("/addStudent", (req, res) => {
             console.log("Student inserted to DATABASE successfully ")
     })
 
-
     getObject(body).then(data => {
         students.save(data, function (err, objectSaved) {
             if (!err) {
                 console.log("object saved successfully");
             }
             else{
-                alert("object save error")
+                res.send("object save error")
             }
         }); 
     })
@@ -254,9 +250,7 @@ app.post("/auth_reg", (req, res) => {
     }
 })
 
-
-
-//تسجيل دخول لمسؤول التوظيف
+//تسجيل حساب لمسؤول التوظيف
 app.post("/auth_login", (req, res) => {
     const body = req.body;
     const email = body.email;
@@ -284,7 +278,7 @@ app.post("/auth_login", (req, res) => {
     })
 })
 
-//نسجيل الخروج
+//تسجيل الخروج لمسؤول التوظيف
 app.get("/auth_logout", (req, res) => {
     req.session.destroy((err) => {
         if (err) throw err;
@@ -292,7 +286,7 @@ app.get("/auth_logout", (req, res) => {
     })
 })
 
-//تسجيل دخول الإدمن
+//تسجيل دخول الأدمن
 let adminEmail = "";
 app.post("/auth_admin", (req, res) => {
     const body = req.body;
@@ -319,6 +313,12 @@ app.post("/auth_admin", (req, res) => {
     })
 })
 
+//توجيه الى صفحة التسجيل دخول الأدمن
+app.get("/admin_Login", (req, res) => {
+    res.render("adminLogin")
+})
+
+//توجيه الى صفحة مسؤول التوظيف
 app.get("/rec", (req, res) => {
     if(req.session.email){
         all(alldatahashes, res, "recruit");
@@ -327,14 +327,17 @@ app.get("/rec", (req, res) => {
     }
 })
 
+//توجيه الى الصفحة الرئيسية
 app.get('/', (req, res) =>{
     res.render('home');
 });
 
+//توجيه الى صفحة التحقق من الشهادة
 app.get('/verifie', (req, res) =>{
     res.render('verifie', {data: '', err: ''});
 });
 
+//توجيه الى صفحة الأدمن
 app.get('/admin', (req, res) =>{
     if(req.session.admin){
     all(alldatahashes, res, "admin");
@@ -344,28 +347,33 @@ app.get('/admin', (req, res) =>{
     // res.render('addStudent', {data: ''});
 });
 
+//توجيه الى صفحة التسجيل دخول مسؤول التوظيف
 app.get('/login',(req,res)=>{
     res.render('regAndLogin', {msg: '', flag: ''});
-    //let who = "recruit"
-    //all(alldatahashes, res, who)
 });
 
-
+//جلب جميع الطلاب المسجلين بالبلوكتشاين
 app.get('/findall', (req,res) => {
-    students.find(function (err, allObjects) {
-        if (!err) {
-            console.log("All objects: " + allObjects);
-            typeof(allObjects)
-            res.json(allObjects);
-        } else {
-            res.send(err)
-        }
-    });
+    if(req.session.email){
+        students.find(function (err, allObjects) {
+            if (!err) {
+                console.log("All objects: " + allObjects);
+                typeof(allObjects)
+                res.json(allObjects);
+            } else {
+                res.send(err)
+            }
+        });  
+    }
+    else{
+        res.redirect("/admin_Login")
+    }
+
 });
 
 
 
-
+//البحث عن طالب برقم الهوية داخل البلوكتشاين
 app.post('/find', (req,res) => {
     const body = req.body;
     const {id} = body;
@@ -380,6 +388,7 @@ app.post('/find', (req,res) => {
     });
 });
 
+//تحدث بيانات الطالب برقم الهوية داخل البلوكتشاين و قاعدة البيانات
 app.post('/update', (req,res) => {
     const body = req.body;
     const sql = `UPDATE students SET ? WHERE NID=?;`;
@@ -405,6 +414,7 @@ app.post('/update', (req,res) => {
 
 });
 
+//حذف بيانات الطالب برقم الهوية داخل البلوكتشاين و قاعدة البيانات
 app.get('/delete/:id', (req,res) => {
     const sql = `DELETE FROM students WHERE NID=?`;
     db.query(sql, req.params.id, function (err, data) {
@@ -421,4 +431,5 @@ app.get('/delete/:id', (req,res) => {
     });
 });
 
+//بدء إتصال السيرفر
 app.listen(port, () => console.log(`Example app listening on port ${port}!`));
