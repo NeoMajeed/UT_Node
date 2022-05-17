@@ -188,8 +188,9 @@ app.get('/pdf/:id', (req, res) => {
             doc.line(20, 25, 188, 25);
             doc.setFontSize(20);
             doc.text(arr, 20.5, 32);
+            // doc.setFontSize(12);
+            // doc.text(`Hash: ${hash}`, 20, 120);
             doc.save(`./verified Certificates/${result.id}.pdf`);
-            console.log("hi")
             setTimeout(() => {
                 res.download(`./verified Certificates/${result.id}.pdf`)
             }, 200);
@@ -250,7 +251,7 @@ app.post("/auth_reg", (req, res) => {
     }
 })
 
-//تسجيل حساب لمسؤول التوظيف
+//تسجيل دخول لمسؤول التوظيف
 app.post("/auth_login", (req, res) => {
     const body = req.body;
     const email = body.email;
@@ -294,7 +295,7 @@ app.post("/auth_admin", (req, res) => {
     const password = body.password;
     const sql = 'select * from admin where email = ?';
 
-    db.query(sql, [email], async (err, result) =>{
+    db.query(sql, [email], (err, result) =>{
         if (err) throw err;
         if(result.length > 0){
             const isMatch =  password == result[0].password;
@@ -340,7 +341,7 @@ app.get('/verifie', (req, res) =>{
 //توجيه الى صفحة الأدمن
 app.get('/admin', (req, res) =>{
     if(req.session.admin){
-    all(alldatahashes, res, "admin");
+        all(alldatahashes, res, "admin");
     }else{
         res.redirect("/admin_Login")
     }
